@@ -1,4 +1,4 @@
-# ultima
+# Archive Glider
 
-A news aggregator.
+Archiving RSS feeds.
 

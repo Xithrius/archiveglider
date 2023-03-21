@@ -1,15 +1,20 @@
-version: "3.4"
+version: "3.7"
 
-x-default: &default
-  restart: always
+x-logging: &logging
   logging:
     driver: "json-file"
     options:
-      max-size: "50m"
+      max-file: "5"
+      max-size: "10m"
+
+x-restart-policy: &restart_policy
+  restart: unless-stopped
+
 
 services:
   nginx:
-    <<: *default
+    <<: *logging
+    <<: *restart_policy
 
     image: "nginx:latest"
 
@@ -21,23 +26,31 @@ services:
       - "443:443"
 
   postgres:
-    <<: *default
+    <<: *logging
+    <<: *restart_policy
 
-    image: "postgres:14-alpine"
+    image: "postgres:latest"
 
     environment:
-      POSTGRES_USER: site
-      POSTGRES_PASSWORD: site
-      POSTGRES_DB: site
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
 
     ports:
-      - "7777:5432"
+      - "5432:5432"
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U xythrion"]
+      interval: 2s
+      timeout: 1s
+      retries: 5
 
     volumes:
-      - ./postgres:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
 
   site:
-    <<: *default
+    <<: *logging
+    <<: *restart_policy
 
     dockerfile: ./site/Dockerfile
 
@@ -49,7 +62,8 @@ services:
       - postgres
 
   grafana:
-    <<: *default
+    <<: *logging
+    <<: *restart_policy
 
     build: ./services/grafana
 
@@ -63,7 +77,8 @@ services:
       - grafana-storage:/var/lib/grafana
 
   prometheus:
-    <<: *default
+    <<: *logging
+    <<: *restart_policy
 
     build: ./services/prometheus
 
@@ -77,7 +92,8 @@ services:
       - prometheus-storage:/prometheus
 
   cadvisor:
-    <<: *default
+    <<: *logging
+    <<: *restart_policy
 
     image: gcr.io/cadvisor/cadvisor:v0.44.0
 
@@ -91,7 +107,8 @@ services:
       - /var/lib/docker/:/var/lib/docker:ro
 
   node_exporter:
-    <<: *default
+    <<: *logging
+    <<: *restart_policy
 
     image: prom/node-exporter:v1.3.1
 
